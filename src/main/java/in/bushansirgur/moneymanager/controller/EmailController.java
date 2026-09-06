@@ -1,11 +1,14 @@
 package in.bushansirgur.moneymanager.controller;
 
+import in.bushansirgur.moneymanager.entity.Contact;
 import in.bushansirgur.moneymanager.entity.ProfileEntity;
 import in.bushansirgur.moneymanager.service.*;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -48,5 +51,26 @@ public class EmailController {
                 baos.toByteArray(),
                 "expenses.xlsx");
         return ResponseEntity.ok(null);
+    }
+
+
+    @PostMapping("/contact")
+    public ResponseEntity<String> sendContactMessage(@RequestBody Contact request)
+            throws MessagingException {
+
+        if (request.getName() == null || request.getName().isBlank() ||
+            request.getEmail() == null || request.getEmail().isBlank() ||
+            request.getMessage() == null || request.getMessage().isBlank()) {
+            return ResponseEntity.badRequest().body("Name, email and message are required");
+        }
+
+        emailService.sendContactEmail(
+                request.getName(),
+                request.getEmail(),
+                request.getSubject(),
+                request.getMessage()
+        );
+
+        return ResponseEntity.ok("Message sent successfully");
     }
 }
