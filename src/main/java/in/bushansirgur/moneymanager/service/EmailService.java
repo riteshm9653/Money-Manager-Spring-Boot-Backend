@@ -4,13 +4,25 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import sendinblue.ApiClient;
+import sendinblue.ApiException;
+import sendinblue.auth.ApiKeyAuth;
+import org.springframework.web.client.RestTemplate;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
+import org.springframework.http.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import sibModel.CreateSmtpEmail;
+import sibModel.SendSmtpEmail;
+import sibModel.SendSmtpEmailSender;
+import sibModel.SendSmtpEmailTo;
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -18,11 +30,13 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
-    
+       private final RestTemplate restTemplate = new RestTemplate();
+
+
   @Value("${spring.mail.properties.mail.smtp.from}")
     private String fromEmail;
 
-    public void sendEmail(String to, String subject, String body) {
+    public void sendEmails(String to, String subject, String body) {
     try {
         log.info("📧 Sending email from: {} to: {}", fromEmail, to);
 
@@ -41,6 +55,9 @@ public class EmailService {
         throw new RuntimeException("Failed to send activation email: " + e.getMessage(), e);
     }
 }
+
+
+
     public void sendEmailWithAttachment(String to, String subject, String body, byte[] attachment, String filename) throws MessagingException {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true);
@@ -52,6 +69,8 @@ public class EmailService {
         mailSender.send(message);
         log.info("✅ Email with attachment sent to: {}", to);
     }
+
+    
 
     public void sendContactEmail(String name, String userEmail, String subject, String message)
             throws MessagingException {
@@ -84,5 +103,50 @@ public class EmailService {
         helper.setText(htmlContent, true); // true = HTML
 
         mailSender.send(mimeMessage);
+    }
+
+    @Value("${BREVO_PASSWORD}")
+    private String apiKey;
+      public void sendEmail(String to, String subject, String body) {
+        try {
+            log.info("📧 Sending email from: {} to: {}", fromEmail, to);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            
+            Map<String, String> sender = new HashMap<>();
+            sender.put("email", fromEmail);
+            requestBody.put("sender", sender);
+            
+            Map<String, String> recipient = new HashMap<>();
+            recipient.put("email", to);
+            requestBody.put("to", Collections.singletonList(recipient));
+            
+            requestBody.put("subject", subject);
+            requestBody.put("htmlContent", body);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("api-key", apiKey);
+
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                "https://api.brevo.com/v3/smtp/email",
+                HttpMethod.POST,
+                requestEntity,
+                String.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("✅ Email sent successfully to: {}", to);
+            } else {
+                log.error("❌ Failed to send email: {}", response.getBody());
+                throw new RuntimeException("Failed to send email: " + response.getBody());
+            }
+
+        } catch (Exception e) {
+            log.error("❌ Failed to send email to {}: {}", to, e.getMessage(), e);
+            throw new RuntimeException("Failed to send activation email: " + e.getMessage(), e);
+        }
     }
 }
