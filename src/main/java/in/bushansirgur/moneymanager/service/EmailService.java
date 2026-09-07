@@ -23,22 +23,24 @@ public class EmailService {
     private String fromEmail;
 
     public void sendEmail(String to, String subject, String body) {
-        try {
-            
-            log.info("📧 Sending email from: {} to: {}", fromEmail, to);
-            
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(to);
-            message.setSubject(subject);
-            message.setText(body);
-            mailSender.send(message);
-            log.info("✅ Email sent successfully to: {}", to);
-        }catch (Exception e) {
-            throw new RuntimeException(e.getMessage());
-        }
-    }
+    try {
+        log.info("📧 Sending email from: {} to: {}", fromEmail, to);
 
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(to);
+        message.setSubject(subject);
+        message.setText(body);
+
+        mailSender.send(message);
+
+        log.info("✅ Email sent successfully to: {}", to);
+    } catch (Exception e) {
+        // This will print the FULL error in Render logs
+        log.error("❌ Failed to send email to {}: {}", to, e.getMessage(), e);
+        throw new RuntimeException("Failed to send activation email: " + e.getMessage(), e);
+    }
+}
     public void sendEmailWithAttachment(String to, String subject, String body, byte[] attachment, String filename) throws MessagingException {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true);
